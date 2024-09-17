@@ -1,0 +1,50 @@
+# Ignore operating system files
+.DS_Store
+Thumbs.db
+
+# Ignore all system and user-specific files
+/AppData/
+/Local Settings/
+/Cookies/
+/Application Data/
+/NetHood/
+/PrintHood/
+/Recent/
+/SendTo/
+/Start Menu/
+/Templates/
+/My Documents/
+/Contacts/
+/Favorites/
+/Links/
+/Saved Games/
+/Searches/
+/NTUSER.DAT*
+/*.ini
+/*.log
+
+# Ignore specific software and cache directories
+/.vscode/
+/.idea/
+/.bash_history
+/.node_repl_history
+/.viminfo
+/*.lnk
+/*.url
+/.conda/
+/.configprops/
+/.datastorage/
+/.docker/
+/.m2/
+/.openjfx/
+/.pencil/
+/3D Objects/
+/Downloads/
+/OneDrive*/
+/OneDrive - KASETSART UNIVERSITY/
+
+# Ignore all files starting with ~$
+~$*
+
+# Ignore development tool folders
+/.gitconfig
