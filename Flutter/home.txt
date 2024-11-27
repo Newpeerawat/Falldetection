@@ -1,44 +1,26 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_application_3/account.dart';
+import 'package:flutter_application_3/map.dart';
 import 'package:flutter_application_3/login.dart';
 
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'dart:convert';
+import 'dart:developer';
+import 'package:http/http.dart' as http;
+
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+
+import 'package:flutter/services.dart';
+
+import 'package:stop_watch_timer/stop_watch_timer.dart';
 
 //มีnotification //พร้อมapp cycle
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 
-Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  const AndroidInitializationSettings initializationSettingsAndroid =
-      AndroidInitializationSettings("@mipmap/ic_launcher");
-
-  final InitializationSettings initializationSettings =
-      InitializationSettings(android: initializationSettingsAndroid);
-
-  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
-
-  runApp(const MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  // This widget is the root of your application.
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Fall Detection',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.lightBlue),
-        useMaterial3: true,
-      ),
-      home: const LoginPage(title: 'Login'),
-    );
-  }
-}
-
-/*class MyHomePage extends StatefulWidget {
+class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
 
   final String title;
@@ -52,9 +34,10 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   bool _isLoading = false;
   String _latitude = '';
   String _longitude = '';
-  int countfall = 0, i=0;
+  int countfall = 0, i = 0;
   String _ESP32 = '';
   final _formKey = GlobalKey<FormState>();
+  String? _username;
   //String? _latitude;
   //String? _longitude;
 
@@ -70,13 +53,14 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     fetchData(); //เริ่มการfetch data แบบ auto
+    _loadUser(); //โหลดข้อมูลAccount
 
     WidgetsBinding.instance.addObserver(this); //สำหรับ app cycle
 
     //Start timer
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _stopWatchTimer.onStartTimer();
-      _startResetTimer(2,0); //ทุก 2 นาทีรีข้อมูล
+      _startResetTimer(2, 0); //ทุก 2 นาทีรีข้อมูล
       //fetchData(); //Fetch data restart
     });
   }
@@ -102,7 +86,8 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
       _stopWatchTimer
           .onStartTimer(); // Restart the timer immediately after resetting
       //fetchData();
-      if(i==0 || countfall==0){ //ตั้งปิดfetch auto ตอนappcycle.resumed
+      if (i == 0 || countfall == 0) {
+        //ตั้งปิดfetch auto ตอนappcycle.resumed
         fetchData(); //Fetch data restart
       }
       //_showNotification(); //Show Notification for restart
@@ -130,31 +115,27 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
       }
     }*/
 
-    if(state == AppLifecycleState.paused){
-      i=0; //Reset i value
+    if (state == AppLifecycleState.paused) {
+      i = 0; //Reset i value
       _stopWatchTimer.onResetTimer();
-      _stopWatchTimer
-          .onStartTimer();
-        _startResetTimer(0,10);
+      _stopWatchTimer.onStartTimer();
+      _startResetTimer(0, 10);
       //fetchData();
-    }
-  
-    else if (state == AppLifecycleState.resumed){
-      i=1; //Set i value
+    } else if (state == AppLifecycleState.resumed) {
+      i = 1; //Set i value
       _stopWatchTimer.onResetTimer();
-      _stopWatchTimer
-          .onStartTimer();
-      if(countfall!=0){
-        _startResetTimer(2,0); //กรณีล้มทุก 2 นาทีรีข้อมูล อยู่หน้าแอพ ตอนนี้ยังใช้ไม่ได้
+      _stopWatchTimer.onStartTimer();
+      if (countfall != 0) {
+        _startResetTimer(
+            1, 0); //กรณีล้มทุก 1 นาทีรีข้อมูล อยู่หน้าแอพ ตอนนี้ยังใช้ไม่ได้
         //fetchData();
-      }
-      else if(countfall==0){  //กรณีไม่ล้ม
-        _startResetTimer(0,10);
+      } else if (countfall == 0) {
+        //กรณีไม่ล้ม
+        _startResetTimer(0, 10);
         //fetchData();
       }
     }
   }
-  
 
   //Notification function
   Future<void> _showNotification() async {
@@ -181,8 +162,8 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
     try {
       final response = await http.get(
         Uri.parse(
-          'https://script.googleusercontent.com/macros/echo?user_content_key=V-WlhkWRTmYVFbQ163ThSNgPNYZr0YFzvHSKDyDK_RIeyhuugKFBsbqE_zTeiKvrX4y7iNgZjptlLYoSkIh9y2pnZ2023Jr8m5_BxDlH2jW0nuo2oDemN9CCS2h10ox_1xSncGQajx_ryfhECjZEnCmW4aT1ywfv8S2WPOhASW348Zgum1olP3Cs0bFteV2_GPqdD_kqTNb8htZ7xOkHqX5mPNaPRBKQR6uf2DyXCXrxvcxDkRzXOQ&lib=MPrA3psxMqr_nBg2_j0VAnyJ67tG3SoUN'),
-            //'https://script.googleusercontent.com/macros/echo?user_content_key=UzjhvIiKf-uEKJvLbf6giyIaLOEoGninpkfLSSHqgDqxzKaSP8YLeVGz5-wcfdCCkG4YR9j0B0TKsyWx5kfgvOqhW5BtzHbcm5_BxDlH2jW0nuo2oDemN9CCS2h10ox_1xSncGQajx_ryfhECjZEnC88z5TdsYJOk9wB10R2V3AQUwuXW20ilKbb2L1S3nrhyPLB7zENKN6A1thYUeE4mIkomoKDxo4kgocFVy_0Z4lntyy_SyR9ntz9Jw9Md8uu&lib=M3hzHvVTGbsuxA3AF-bU0FFyv5OXIE90q'),
+            'https://script.googleusercontent.com/macros/echo?user_content_key=V-WlhkWRTmYVFbQ163ThSNgPNYZr0YFzvHSKDyDK_RIeyhuugKFBsbqE_zTeiKvrX4y7iNgZjptlLYoSkIh9y2pnZ2023Jr8m5_BxDlH2jW0nuo2oDemN9CCS2h10ox_1xSncGQajx_ryfhECjZEnCmW4aT1ywfv8S2WPOhASW348Zgum1olP3Cs0bFteV2_GPqdD_kqTNb8htZ7xOkHqX5mPNaPRBKQR6uf2DyXCXrxvcxDkRzXOQ&lib=MPrA3psxMqr_nBg2_j0VAnyJ67tG3SoUN'),
+        //'https://script.googleusercontent.com/macros/echo?user_content_key=UzjhvIiKf-uEKJvLbf6giyIaLOEoGninpkfLSSHqgDqxzKaSP8YLeVGz5-wcfdCCkG4YR9j0B0TKsyWx5kfgvOqhW5BtzHbcm5_BxDlH2jW0nuo2oDemN9CCS2h10ox_1xSncGQajx_ryfhECjZEnC88z5TdsYJOk9wB10R2V3AQUwuXW20ilKbb2L1S3nrhyPLB7zENKN6A1thYUeE4mIkomoKDxo4kgocFVy_0Z4lntyy_SyR9ntz9Jw9Md8uu&lib=M3hzHvVTGbsuxA3AF-bU0FFyv5OXIE90q'),
       );
       log("this is the response: $response");
 
@@ -213,7 +194,10 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
             //_stopWatchTimer.onResetTimer;
           });
 
-          if (_latitude != '0' && _longitude != '0' && _latitude != '1' && _longitude != '1') {
+          if (_latitude != '0' &&
+              _longitude != '0' &&
+              _latitude != '1' &&
+              _longitude != '1') {
             // Navigate to MapsPage after receiving data
             _showNotification(); // Show notification
             countfall++;
@@ -259,62 +243,6 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
     }
   }
 
-//ดึงข้อมูลจาก http
-/*//ตรงข้างในUri.parse ไปเปิด forward path ทุกรอบ กรณีปิด cmd ไปแล้ว ตัวอย่างในดิส
-//ตรงข้างในUri.parse ใช้เป็นurlเดิมได้แล้วตอนนี้ (ใช้อันนี้)
-  Future<void> fetchData() async {
-    setState(() {
-      _isLoading = true;
-    });
-    try {
-      final response = await http.get(
-        Uri.parse('https://anchovy-just-commonly.ngrok-free.app/'),
-      );
-      log("this is the response: $response");
-
-      if (response.statusCode == 200) {
-        //เชื่อมต่อESP32แบบมีข้อมูลส่งมา
-        final jsonResponse = json.decode(response.body);
-        _showNotification(); //Show notification
-        setState(() {
-          _latitude = jsonResponse['message1'];
-          _longitude = jsonResponse['message2'];
-          _ESP32 = 'ON';
-          countfall++;
-          _isLoading = false;
-        });
-
-        // Navigate to MapsPage after receiving data
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => MapsPage(
-              latitude: _latitude,
-              longitude: _longitude,
-            ),
-          ),
-        );
-      } else {
-        //ไม่ได้เชื่อต่อESP32
-        setState(() {
-          _latitude = 'Failed to fetch data';
-          _longitude = 'Failed to fetch data';
-          _ESP32 = 'OFF';
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      log("", error: e, name: "error");
-      setState(() {
-        //เชื่อมต่อESP32แบบไม่มีข้อมูลส่งมา
-        _latitude = 'Failed to fetch data';
-        _longitude = 'Failed to fetch data';
-        _ESP32 = 'ON';
-        _isLoading = false;
-      });
-    }
-  }*/
-
   //Copy URL function
   Future<void> _copyToClipboard() async {
     // สร้าง URL โดยแทรกค่า latitude และ longitude
@@ -330,79 +258,132 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text(widget.title),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: fetchData,
-          ),
-        ],
-      ),
-      body: Container(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              if (_isLoading)
-                const CircularProgressIndicator()
-              else
-                Column(
-                  children: [
-                    Text(
-                      'Latitude: $_latitude',
-                      style: const TextStyle(fontSize: 20),
-                    ),
-                    const SizedBox(height: 20),
-                    Text(
-                      'Longitude: $_longitude',
-                      style: const TextStyle(fontSize: 20),
-                    ),
-                    const SizedBox(height: 60),
-                    Center(
-                      child: Text(
-                        'ESP32: $_ESP32',
-                        style: const TextStyle(fontSize: 20),
-                      ),
-                    ),
-                  ],
-                ),
+  // โหลดข้อมูลUsernameจาก SharedPreferences
+  Future<void> _loadUser() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _username = prefs.getString('savedUser'); // ดึง username ที่เคยบันทึกไว้
+    });
+  }
 
-              // ใช้ Center widget เพื่อจัดให้รูปภาพอยู่ตรงกลาง
-              Center(
-                child: Column(
-                  children: [
-                    Image.network(
-                      "https://files.seeedstudio.com/wiki/Wio_RP2040_mini_Dev_Board-Onboard_Wifi/Wireless-Fall-Detection-Device/fall.jpg",
-                      width: 200,
-                      height: 200,
-                    ),
-                    const Text(
-                      'Welcome to Fall Detection:',
-                    ),
-                    //เพิ่มเงื่อนไขshowปุ่ม share location เมื่อจับตำแหน่งการล้มได้
-                    if (_latitude != 'Failed to fetch data' &&
-                        _longitude != 'Failed to fetch data' &&
-                        countfall != 0)
-                      ElevatedButton(
-                        onPressed: _copyToClipboard,
-                        child: Text('Share Location'),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+  //ไปหน้าAccount
+  Future<void> _Account() async {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AccountPage(
+          user: _username!,
         ),
       ),
     );
   }
-}
-*/
 
+  @override
+  Widget build(BuildContext context) {
+    return WillPopScope(
+        child: Scaffold(
+          appBar: AppBar(
+            backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+            title: Text(widget.title),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.refresh),
+                onPressed: fetchData,
+              ),
+            ],
+          ),
+          body: Container(
+            padding: const EdgeInsets.all(16.0),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Center(
+                    child: Align(
+                      alignment: Alignment.topRight,
+                      child: IconButton(
+                        icon: const Icon(Icons.account_circle),
+                        iconSize: 30,
+                        onPressed: _Account,
+                      ),
+                    ),
+                  ),
+                  if (_isLoading)
+                    const CircularProgressIndicator()
+                  else
+                    Column(
+                      children: [
+                        Text(
+                          'Latitude: $_latitude',
+                          style: const TextStyle(fontSize: 20),
+                        ),
+                        const SizedBox(height: 20),
+                        Text(
+                          'Longitude: $_longitude',
+                          style: const TextStyle(fontSize: 20),
+                        ),
+                        const SizedBox(height: 60),
+                        Center(
+                          child: Text(
+                            'ESP32: $_ESP32',
+                            style: const TextStyle(fontSize: 20),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                  // ใช้ Center widget เพื่อจัดให้รูปภาพอยู่ตรงกลาง
+                  Center(
+                    child: Column(
+                      children: [
+                        Image.network(
+                          "https://files.seeedstudio.com/wiki/Wio_RP2040_mini_Dev_Board-Onboard_Wifi/Wireless-Fall-Detection-Device/fall.jpg",
+                          width: 200,
+                          height: 200,
+                        ),
+                        const Text(
+                          'Welcome to Fall Detection:',
+                        ),
+                        //เพิ่มเงื่อนไขshowปุ่ม share location เมื่อจับตำแหน่งการล้มได้
+                        if (_latitude != 'Failed to fetch data' &&
+                            _longitude != 'Failed to fetch data' &&
+                            countfall != 0)
+                          ElevatedButton(
+                            onPressed: _copyToClipboard,
+                            child: Text('Share Location'),
+                          ),
+                        //ปุ่ม logout
+                        SizedBox(
+                          height: 15,
+                        ),
+                        Row(
+                          children: <Widget>[
+                            Expanded(
+                                child: FloatingActionButton(
+                              onPressed: () {
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const LoginPage(title: 'Login'),
+                                  ),
+                                );
+                              },
+                              child: const Text('Logout'),
+                            ))
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        onWillPop: () async {
+          return false;
+        });
+  }
+}

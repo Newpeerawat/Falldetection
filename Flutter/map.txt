@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'dart:convert';
+//import 'dart:convert';
 import 'package:longdo_maps_api3_flutter/longdo_maps_api3_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 
-import 'dart:async';
-//import 'package:stop_watch_timer/stop_watch_timer.dart';
+//import 'dart:async';
 
 
 /*//case3 พิมพ์latitudeและlongitudeแล้วแสดงในmap
@@ -250,7 +249,7 @@ class _MapsPageState extends State<MapsPage>{
     if (permission == LocationPermission.denied ||
         permission == LocationPermission.deniedForever) {
       print("Location Denied");
-      LocationPermission ask = await Geolocator.requestPermission();
+      //LocationPermission ask = await Geolocator.requestPermission();
     } else {
       Position currentposition = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.best);
