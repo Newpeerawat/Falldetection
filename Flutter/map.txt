@@ -249,7 +249,7 @@ class _MapsPageState extends State<MapsPage>{
     if (permission == LocationPermission.denied ||
         permission == LocationPermission.deniedForever) {
       print("Location Denied");
-      //LocationPermission ask = await Geolocator.requestPermission();
+      LocationPermission ask = await Geolocator.requestPermission();
     } else {
       Position currentposition = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.best);
