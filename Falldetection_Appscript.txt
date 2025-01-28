@@ -1,0 +1,215 @@
+//https://docs.google.com/spreadsheets/d/157iinZmTMAba_ukyyMP6aVjt4VYR45uiY_XdVOhqRkU/edit?gid=0#gid=0
+
+//Web app- https://script.google.com/macros/s/AKfycbxrv863W7gFUye5UsqirA5xTAd8H6cMKV17xufAUJRHiCBj7QgsDwCLkrnx0GLhYi0q/exec
+//Test write- https://script.google.com/macros/s/AKfycbxrv863W7gFUye5UsqirA5xTAd8H6cMKV17xufAUJRHiCBj7QgsDwCLkrnx0GLhYi0q/exec?sts=write&srs=Success&temp=32.5&humd=95&swtc1=Off&swtc2=Off
+
+//Test read- https://script.google.com/macros/s/AKfycbxrv863W7gFUye5UsqirA5xTAd8H6cMKV17xufAUJRHiCBj7QgsDwCLkrnx0GLhYi0q/exec?sts=read
+
+//พร้อมส่ง flutter
+function doGet(e) { 
+  Logger.log(JSON.stringify(e));
+  var result = 'Ok';
+  //var response = []; //สำหรับส่ง flutter
+  if (e.parameter == 'undefined') {
+    result = 'No Parameters';
+    //response.message = result;
+  }
+  else {
+    var sheet_id = '157iinZmTMAba_ukyyMP6aVjt4VYR45uiY_XdVOhqRkU'; 	// Spreadsheet ID.
+    var sheet_name = "Sheet1";  // Sheet Name in Google Sheets.
+
+    var sheet_open = SpreadsheetApp.openById(sheet_id);
+    var sheet_target = sheet_open.getSheetByName(sheet_name);
+
+    var newRow = sheet_target.getLastRow() + 1;
+
+    var rowDataLog = [];
+
+    var Data_for_I3;
+    var Data_for_J3;
+    var Data_for_K3;
+    var Data_for_L3;
+    
+    var Data_for_K4;
+    var Data_for_L4;
+    //var Data_for_M3;
+    //var Data_for_N3;
+    //var Data_for_O3;
+
+    var Curr_Date = Utilities.formatDate(new Date(), "Asia/Jakarta", 'dd/MM/yyyy');
+    rowDataLog[0] = Curr_Date;  // Date will be written in column A.
+    Data_for_I3 = Curr_Date;  // Date will be written in column I3.
+
+    var Curr_Time = Utilities.formatDate(new Date(), "Asia/Jakarta", 'HH:mm:ss');
+    rowDataLog[1] = Curr_Time;  // Time will be written in column B.
+    Data_for_J3 = Curr_Time;  // Time will be written in column J3.
+
+    var sts_val = '';
+
+    for (var param in e.parameter) {
+      Logger.log('In for loop, param=' + param);
+      var value = stripQuotes(e.parameter[param]);
+      Logger.log(param + ':' + e.parameter[param]);
+      switch (param) {
+        case 'sts':
+          sts_val = value;
+          break;
+        
+        case 'latitude':
+          rowDataLog[2] = value;  // The latitude value will be written in column C (in the Data Logger section).
+          Data_for_K3 = value;  // The latitude value will be written in column K3 (in the Latest section).
+          result += ', Latitude Written on column C';
+          //response.latitude = value;
+          break;
+
+        case 'longitude':
+          rowDataLog[3] = value; // The longitude value will be written in column D (in the Data Logger section).
+          Data_for_L3 = value;  // The longitude value will be written in column L3 (in the Latest section).
+          result += ', Longitude Written on column D';
+          //response.longitude = value;
+          break;
+
+        case 'reallatitude':
+          //rowDataLog[10] = value;  // The latitude value will be written in column K (in the Data Logger section).
+          Data_for_K3 = value;  // The latitude value will be written in column K3 (in the Latest section).
+          //Data_for_K4 = value;  // The latitude value will be written in column K4 (in the Latest section).
+          result += ', Latitude Written on column K4';
+          //response.reallatitude = value;
+          break;
+
+        case 'reallongitude':
+          //rowDataLog[11] = value; // The longitude value will be written in column D (in the Data Logger section).
+          Data_for_L3 = value;  // The longitude value will be written in column L3 (in the Latest section).
+          //Data_for_L4 = value;  // The longitude value will be written in column L4 (in the Latest section).
+          result += ', Longitude Written on column L4';
+          //response.reallongitude = value;
+          break;
+
+
+        /*case 'srs':
+          rowDataLog[2] = value;  // Sensor Reading Status will be written in column C (in the "DHT11 Sensor Data Logger" section).
+          Data_for_K3 = value;  // Sensor Reading Status will be written in column K3 (in the "Latest DHT11 Sensor Data" section).
+          result += ', Sensor Reading Status Written on column C';
+          break;*/
+
+        /*case 'temp':
+          rowDataLog[2] = value;  // The temperature value will be written in column D (in the "DHT11 Sensor Data Logger" section).
+          Data_for_K3 = value;  // The temperature value will be written in column L3 (in the "Latest DHT11 Sensor Data" section).
+          result += ', Temperature Written on column C';
+          break;
+
+        case 'humd':
+          rowDataLog[3] = value; // The humidity value will be written in column E (in the "DHT11 Sensor Data Logger" section).
+          Data_for_L3 = value;  // The humidity value will be written in column M3 (in the "Latest DHT11 Sensor Data" section).
+          result += ', Humidity Written on column D';
+          break;*/
+
+        /*case 'swtc1':
+          rowDataLog[5] = value;  // The state of Switch_1 will be written in column F (in the "DHT11 Sensor Data Logger" section).
+          Data_for_N3 = value;  // The state of Switch_1 will be written in column N3 (in the "Latest DHT11 Sensor Data" section).
+          result += ', Switch_1 Written on column F';
+          break;*/
+
+        /*case 'swtc2':
+          rowDataLog[6] = value;  // The state of Switch_2 will be written in column G (in the "DHT11 Sensor Data Logger" section).
+          Data_for_O3 = value;  // The state of Switch_2 will be written in column O3 (in the "Latest DHT11 Sensor Data" section).
+          result += ', Switch_2 Written on column G';
+          break; */ 
+
+        default:
+          result += ", unsupported parameter";
+      }
+    }
+    
+    // Conditions for writing data received from ESP32 to Google Sheets. คัดลอกวางไปใส่ด้านขวาเพื่อบอกค่าล่าสุด
+    if (sts_val == 'write') {
+      // Writes data to the "DHT11 Sensor Data Logger" section.
+      Logger.log(JSON.stringify(rowDataLog));
+      var newRangeDataLog = sheet_target.getRange(newRow, 1, 1, rowDataLog.length);
+      newRangeDataLog.setValues([rowDataLog]);
+      
+      // Write the data to the "Latest DHT11 Sensor Data" section.
+      var RangeDataLatest = sheet_target.getRange('I3:L3');
+     //RangeDataLatest.setValues([[Data_for_I3, Data_for_J3, Data_for_K3, Data_for_L3, Data_for_M3, Data_for_N3, Data_for_O3]]);
+      RangeDataLatest.setValues([[Data_for_I3, Data_for_J3, Data_for_K3, Data_for_L3]]);
+
+      //response.status = "เขียนข้อมูลเรียบร้อยแล้ว";
+
+      return ContentService.createTextOutput(result);
+    }
+    
+    // Conditions for sending data to ESP32 when ESP32 reads data from Google Sheets.
+    if (sts_val == 'read') {
+      // Use the line of code below if you want ESP32 to read data from columns I3 to O3 (Date,Time,Sensor Reading Status,Temperature,Humidity,Switch 1, Switch 2).
+      // var all_Data = sheet_target.getRange('I3:O3').getDisplayValues();
+      
+      // Use the line of code below if you want ESP32 to read data from columns K3 to O3 (Sensor Reading Status,Temperature,Humidity,Switch 1, Switch 2).
+      //var all_Data = sheet_target.getRange('K3:O3').getValues();
+
+      var all_Data = sheet_target.getRange('K3:L3').getValues();
+
+      /*response.status = "อ่านข้อมูลเรียบร้อยแล้ว";
+      response.data = {
+        reallatitude: all_Data[0][0],
+        reallongitude: all_Data[0][1]
+      };*/
+
+      return ContentService.createTextOutput(all_Data);
+    }
+  }
+
+  //////////แปลงเป็นjson
+  var urls = "https://docs.google.com/spreadsheets/d/157iinZmTMAba_ukyyMP6aVjt4VYR45uiY_XdVOhqRkU/edit?gid=0#gid=0";
+  var ss = SpreadsheetApp.openByUrl(urls);
+  var ws = ss.getSheetByName("Sheet1");
+  // ดึงค่าจากเซลล์ K3 และ L3
+  var dataK3 = ws.getRange("K3").getValue();
+  var dataL3 = ws.getRange("L3").getValue();
+  
+  // สร้าง JSON ที่ต้องการ
+  var result = {
+    reallatitude: dataK3,
+    reallongitude: dataL3
+  };
+  
+  var output = ContentService.createTextOutput();
+  output.setMimeType(ContentService.MimeType.JSON);
+  output.setContent(JSON.stringify(result));
+  return output;
+  
+
+  //Logger.log(JSON.stringify(response));  // เพิ่มการบันทึก response
+  //return ContentService.createTextOutput(JSON.stringify(response)).setMimeType(ContentService.MimeType.JSON);
+}
+
+function stripQuotes( value ) {
+  return value.replace(/^["']|['"]$/g, "");
+}
+//________________________________________________________________________________
+
+
+
+
+/*//https://script.google.com/macros/s/AKfycbzdaV09fHKI9EXjSGqsvhULyvYjJPMojpT9nuZ_rPohTW9qkC3sdaBKCO7EEyIpOlHW/exec
+var urls = "https://docs.google.com/spreadsheets/d/157iinZmTMAba_ukyyMP6aVjt4VYR45uiY_XdVOhqRkU/edit?gid=0#gid=0";
+var ss = SpreadsheetApp.openByUrl(urls);
+var ws = ss.getSheetByName("sheet1");
+/*var ss = SpreadsheetApp.openById('AKfycbzdaV09fHKI9EXjSGqsvhULyvYjJPMojpT9nuZ_rPohTW9qkC3sdaBKCO7EEyIpOlHW');
+var sheet = ss.getSheetByName('Sheet1');
+
+function doPost(e) {
+  var val = e.parameter.value;
+  
+  if (e.parameter.value !== undefined){
+    var range = sheet.getRange('A2');
+    range.setValue(val);
+  }
+}
+
+function doGet(e){
+  var read = e.parameter.read;
+
+  if (read !== undefined){
+    return ContentService.createTextOutput(sheet.getRange('C2').getValue());
+  }
+}*/
