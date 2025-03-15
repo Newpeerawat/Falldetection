@@ -1,4 +1,7 @@
 import 'dart:async';
+import 'dart:io';
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_application_3/account.dart';
 import 'package:flutter_application_3/map.dart';
@@ -10,20 +13,279 @@ import 'dart:convert';
 import 'dart:developer';
 import 'package:http/http.dart' as http;
 
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:flutter_background_service/flutter_background_service.dart';
+import 'package:flutter_background_service_android/flutter_background_service_android.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'package:flutter/services.dart';
 
 import 'package:stop_watch_timer/stop_watch_timer.dart';
 
-//มีnotification //พร้อมapp cycle
+//มีnotification
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+Future<void> _showNotification2() async {
+  AndroidNotificationDetails androidNotificationDetails =
+      AndroidNotificationDetails('nextflow_noti_001', 'Urgent Alert',
+          playSound: true,
+          sound: RawResourceAndroidNotificationSound(
+              'notification.mp3'.split('.').first),
+          importance: Importance.max,
+          priority: Priority.high,
+          ticker: 'ticker');
 
-  final String title;
+  NotificationDetails platformChannelDetails = NotificationDetails(
+    android: androidNotificationDetails,
+  );
+
+  await flutterLocalNotificationsPlugin.show(0, 'Emergency!',
+      'Open the app to view the location.', platformChannelDetails);
+}
+
+Future<Map<String, String>> fetchData2() async {
+  try {
+    final response = await http.get(Uri.parse(
+        'https://script.googleusercontent.com/macros/echo?user_content_key=V-WlhkWRTmYVFbQ163ThSNgPNYZr0YFzvHSKDyDK_RIeyhuugKFBsbqE_zTeiKvrX4y7iNgZjptlLYoSkIh9y2pnZ2023Jr8m5_BxDlH2jW0nuo2oDemN9CCS2h10ox_1xSncGQajx_ryfhECjZEnCmW4aT1ywfv8S2WPOhASW348Zgum1olP3Cs0bFteV2_GPqdD_kqTNb8htZ7xOkHqX5mPNaPRBKQR6uf2DyXCXrxvcxDkRzXOQ&lib=MPrA3psxMqr_nBg2_j0VAnyJ67tG3SoUN'));
+
+    if (response.statusCode == 200) {
+      // ตรวจสอบว่า response ไม่ใช่ null และเป็น JSON
+      final Map<String, dynamic> jsonResponse = json.decode(response.body);
+
+      // ตรวจสอบว่าคีย์มีอยู่ใน JSON และไม่ใช่ null
+      if (jsonResponse.containsKey('reallatitude') &&
+          jsonResponse.containsKey('reallongitude')) {
+        String _latitude = jsonResponse['reallatitude']?.toString() ?? "0.0";
+        String _longitude = jsonResponse['reallongitude']?.toString() ?? "0.0";
+
+        print("✅ Data received: Latitude=$_latitude, Longitude=$_longitude");
+
+        return {"latitude": _latitude, "longitude": _longitude};
+      } else {
+        print("⚠️ Missing keys in response JSON");
+      }
+    } else {
+      print("❌ HTTP Error: ${response.statusCode}");
+    }
+  } catch (e) {
+    print("❌ Error fetching ESP32 data: $e");
+  }
+
+  // คืนค่าเริ่มต้นในกรณีที่มีข้อผิดพลาด
+  return {"latitude": "0.0", "longitude": "0.0"};
+}
+
+//Start Foreground&Background Service
+Future<void> initializeService() async {
+  //await initializeService();
+  final service = FlutterBackgroundService();
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  await prefs.setBool(
+      'hasFetchedLocation', false); //รีเซ็ตค่า Fetch ทุกครั้งที่เปิดแอป
+
+  /// OPTIONAL, using custom notification channel id
+  const AndroidNotificationChannel channel = AndroidNotificationChannel(
+    'my_foreground', // id
+    'MY FOREGROUND SERVICE', // title
+    description:
+        'This channel is used for important notifications.', // description
+    importance: Importance.low, // importance must be at low or higher level
+  );
+
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+      FlutterLocalNotificationsPlugin();
+
+  // if (Platform.isIOS) {
+  //   await flutterLocalNotificationsPlugin.initialize(
+  //     const InitializationSettings(
+  //       iOS: IOSInitializationSettings(),
+  //     ),
+  //   );
+  // }
+
+  await flutterLocalNotificationsPlugin
+      .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>()
+      ?.createNotificationChannel(channel);
+
+  await service.configure(
+    androidConfiguration: AndroidConfiguration(
+      // this will be executed when app is in foreground or background in separated isolate
+      onStart: onStart,
+
+      // auto start service
+      autoStart: true,
+      isForegroundMode: true,
+
+      //Show Notificatiion Foreground
+      notificationChannelId: 'my_foreground',
+      initialNotificationTitle: 'Fall Detection Application',
+      initialNotificationContent: 'The app is working.',
+      foregroundServiceNotificationId: 888,
+    ),
+    iosConfiguration: IosConfiguration(
+      // auto start service
+      autoStart: true,
+
+      // this will be executed when app is in foreground in separated isolate
+      onForeground: onStart,
+
+      // you have to enable background fetch capability on xcode project
+      onBackground: onIosBackground,
+    ),
+  );
+
+  service.startService();
+}
+
+@pragma('vm:entry-point')
+Future<bool> onIosBackground(ServiceInstance service) async {
+  WidgetsFlutterBinding.ensureInitialized();
+  DartPluginRegistrant.ensureInitialized();
+
+  SharedPreferences preferences = await SharedPreferences.getInstance();
+  await preferences.reload();
+  final log = preferences.getStringList('log') ?? <String>[];
+  log.add(DateTime.now().toIso8601String());
+  await preferences.setStringList('log', log);
+
+  return true;
+}
+
+bool _hasFetchedLocation = false; // ป้องกันการ Fetch ซ้ำ
+
+@pragma('vm:entry-point')
+void onStart(ServiceInstance service) async {
+  // Only available for flutter 3.0.0 and later
+  DartPluginRegistrant.ensureInitialized();
+
+  // โหลดค่า `_hasFetchedLocation` จาก SharedPreferences
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  //_hasFetchedLocation = prefs.getBool('hasFetchedLocation') ?? false;
+
+  // For flutter prior to version 3.0.0
+  // We have to register the plugin manually
+
+  /*SharedPreferences preferences = await SharedPreferences.getInstance();
+  await preferences.setString("hello", "world");*/
+
+  /*/// OPTIONAL when use custom notification
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+      FlutterLocalNotificationsPlugin();*/
+
+  if (service is AndroidServiceInstance) {
+    service.on('setAsForeground').listen((event) {
+      service.setAsForegroundService();
+    });
+
+    service.on('setAsBackground').listen((event) {
+      service.setAsBackgroundService();
+    });
+  }
+
+  service.on('stopService').listen((event) {
+    service.stopSelf();
+  });
+
+  // bring to foreground
+  Timer.periodic(const Duration(seconds: 5), (timer) async {
+    if (_hasFetchedLocation) {
+      timer.cancel(); //หยุด Fetch เมื่อได้ค่าพิกัดที่ถูกต้องแล้ว
+      return;
+    }
+
+    final response = await fetchData2(); // ดึงข้อมูลจาก ESP32
+
+    String latitude = response['latitude']!;
+    String longitude = response['longitude']!;
+    if (latitude != "0" &&
+        longitude != "0" &&
+        latitude != "1" &&
+        longitude != "1") {
+      _showNotification2();
+      _hasFetchedLocation = true; //ป้องกัน fetch ซ้ำ
+      await prefs.setBool(
+          'hasFetchedLocation', true); //บันทึกลงshare preference
+      await prefs.setString('rememberlatitude', latitude);
+      await prefs.setString('rememberlongitude', longitude);
+    }
+
+    // ✅ เปิด `MapsPage` อัตโนมัติ
+    service.invoke(
+      'open_maps',
+      {
+        "latitude": latitude,
+        "longitude": longitude,
+      },
+    );
+
+    // ส่งข้อมูลไปให้ UI
+    service.invoke(
+      'update_location',
+      {
+        "latitude": response['latitude'],
+        "longitude": response['longitude'],
+      },
+    );
+
+    if (service is AndroidServiceInstance) {
+      if (await service.isForegroundService()) {
+        /// OPTIONAL for use custom notification
+        /// the notification id must be equals with AndroidConfiguration when you call configure() method.
+
+        /*flutterLocalNotificationsPlugin.show(
+          888,
+          'COOL SERVICE',
+          'Awesome ${DateTime.now()}',
+          const NotificationDetails(
+            android: AndroidNotificationDetails(
+              'my_foreground',
+              'MY FOREGROUND SERVICE',
+              icon: 'ic_bg_service_small',
+              ongoing: true,
+            ),
+          ),
+        );*/
+
+        // if you don't using custom notification, uncomment this
+        // service.setForegroundNotificationInfo(
+        //   title: "My App Service",
+        //   content: "Updated at ${DateTime.now()}",
+        // );
+      }
+    }
+
+    /// you can see this log in logcat
+    print('FLUTTER BACKGROUND SERVICE: ${DateTime.now()}');
+
+    // test using external plugin
+    final deviceInfo = DeviceInfoPlugin();
+    String? device;
+    if (Platform.isAndroid) {
+      final androidInfo = await deviceInfo.androidInfo;
+      device = androidInfo.model;
+    }
+
+    if (Platform.isIOS) {
+      final iosInfo = await deviceInfo.iosInfo;
+      device = iosInfo.model;
+    }
+
+    service.invoke(
+      'update',
+      {
+        "current_date": DateTime.now().toIso8601String(),
+        "device": device,
+      },
+    );
+  });
+}
+
+class MyHomePage extends StatefulWidget {
+  const MyHomePage({super.key});
+
+  //final String title;
 
   @override
   State<MyHomePage> createState() => _MyHomePageState();
@@ -34,7 +296,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   bool _isLoading = false;
   String _latitude = '';
   String _longitude = '';
-  int countfall = 0, i = 0;
+  int countfall = 0, stop = 0, i = 0;
   String _ESP32 = '';
   final _formKey = GlobalKey<FormState>();
   String? _username;
@@ -51,6 +313,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
 
   @override
   void initState() {
+    //await initializeService(); //On Background service
     super.initState();
     fetchData(); //เริ่มการfetch data แบบ auto
     _loadUser(); //โหลดข้อมูลAccount
@@ -60,7 +323,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
     //Start timer
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _stopWatchTimer.onStartTimer();
-      _startResetTimer(2, 0); //ทุก 2 นาทีรีข้อมูล
+      _startResetTimer(1, 0); //ทุก 1 นาทีรีข้อมูลของfetchData()
       //fetchData(); //Fetch data restart
     });
   }
@@ -86,75 +349,52 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
       _stopWatchTimer
           .onStartTimer(); // Restart the timer immediately after resetting
       //fetchData();
-      if (i == 0 || countfall == 0) {
+
+      /*
+      if ((i == 0 || countfall == 0) && stop == 0) {
         //ตั้งปิดfetch auto ตอนappcycle.resumed
         fetchData(); //Fetch data restart
+        stop = 1; //Set stop fetch for pause case
       }
-      //_showNotification(); //Show Notification for restart
+      */
+      //_showNotification2(); //Show Notification for restart
     });
   }
 
   //Appcycle function
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
+  Future<void> didChangeAppLifecycleState(AppLifecycleState state) async {
     super.didChangeAppLifecycleState(state);
-    /*if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.inactive) {
-      if (countfall != 0) { //มีการล้มแล้ว
-        _stopWatchTimer.onResetTimer();
-        _stopWatchTimer.onStartTimer();
-        _startResetTimer(2, 0);
-      } 
-      else { //ยังไม่ล้ม
-        //fetchData(); //รีข้อมูล
-        _stopWatchTimer.onResetTimer();
-        _stopWatchTimer.onStartTimer();
-        _startResetTimer(0,20); //ทุก 20 วินาทีรีข้อมูล; //ให้สามารถทำงานได้ขณะไม่เปิดแอพพร้อมresetเวลาใหม่
-        //fetchData(); //ให้สามารถทำงานได้ขณะไม่เปิดแอพ
-        //_showNotification();  // แสดงการแจ้งเตือนเมื่อแอปถูกกดปุ่มhomeหรือปุ่มbackหรือปุ่มหน้าต่างทั้งหมด
-      }
-    }*/
 
     if (state == AppLifecycleState.paused) {
-      i = 0; //Reset i value
-      _stopWatchTimer.onResetTimer();
+      //i = 0;
+      await initializeService(); //On Background service
+      /*_stopWatchTimer.onResetTimer();
       _stopWatchTimer.onStartTimer();
-      _startResetTimer(0, 10);
+      _startResetTimer(0, 5);*/
       //fetchData();
     } else if (state == AppLifecycleState.resumed) {
-      i = 1; //Set i value
-      _stopWatchTimer.onResetTimer();
-      _stopWatchTimer.onStartTimer();
-      if (countfall != 0) {
+      //i = 1;
+      stop = 0; //Reset stop fetch
+      //_stopWatchTimer.onResetTimer();
+      //_stopWatchTimer.onStartTimer();
+      /*if (countfall != 0) {
+        _stopWatchTimer.onResetTimer();
+        _stopWatchTimer.onStartTimer();
         _startResetTimer(
             1, 0); //กรณีล้มทุก 1 นาทีรีข้อมูล อยู่หน้าแอพ ตอนนี้ยังใช้ไม่ได้
-        //fetchData();
+        //fetchData(); //รีข้อมูล
       } else if (countfall == 0) {
         //กรณีไม่ล้ม
-        _startResetTimer(0, 10);
-        //fetchData();
-      }
+        _startResetTimer(0, 5);
+        //fetchData(); //รีข้อมูล
+      }*/
     }
-  }
-
-  //Notification function
-  Future<void> _showNotification() async {
-    const AndroidNotificationDetails androidNotificationDetails =
-        AndroidNotificationDetails('nextflow_noti_001', 'Urgent Alert',
-            importance: Importance.max,
-            priority: Priority.high,
-            ticker: 'ticker');
-
-    const NotificationDetails platformChannelDetails = NotificationDetails(
-      android: androidNotificationDetails,
-    );
-
-    await flutterLocalNotificationsPlugin.show(0, 'Emergency!',
-        'Open the app to view the location.', platformChannelDetails);
   }
 
   //ดึงข้อมูลจาก google sheet
   Future<void> fetchData() async {
+    //await initializeService(); //On Background service
     setState(() {
       _isLoading = true;
       //i=0; //Reset i value
@@ -199,7 +439,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
               _latitude != '1' &&
               _longitude != '1') {
             // Navigate to MapsPage after receiving data
-            _showNotification(); // Show notification
+            _showNotification2(); // Show notification
             countfall++;
             //_stopWatchTimer.onStopTimer;
             //_stopWatchTimer.onResetTimer;
@@ -278,13 +518,28 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
     );
   }
 
+  //Logout
+  Future<void> _logout() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.remove('hasFetchedLocation');
+    await prefs.remove('latitude');
+    await prefs.remove('longitude');
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const LoginPage(title: "Login"),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
         child: Scaffold(
           appBar: AppBar(
             backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-            title: Text(widget.title),
+            title: const Text('Fall Detection'),
             actions: [
               IconButton(
                 icon: const Icon(Icons.refresh),
@@ -361,21 +616,39 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
                           children: <Widget>[
                             Expanded(
                                 child: FloatingActionButton(
-                              onPressed: () {
-                                Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        const LoginPage(title: 'Login'),
-                                  ),
-                                );
-                              },
+                              onPressed: (_logout),
                               child: const Text('Logout'),
                             ))
                           ],
                         ),
                       ],
                     ),
+                  ),
+                  //For Foreground&Background to Mapspage
+                  StreamBuilder<Map<String, dynamic>?>(
+                    stream: FlutterBackgroundService().on('open_maps'),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasData) {
+                        final data = snapshot.data!;
+                        String latitude = data["latitude"] ?? "0";
+                        String longitude = data["longitude"] ?? "0";
+
+                        // ✅ นำทางไปหน้า MapsPage อัตโนมัติเมื่อได้รับค่าพิกัด
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => MapsPage(
+                                latitude: latitude,
+                                longitude: longitude,
+                              ),
+                            ),
+                          );
+                        });
+                      }
+                      return SizedBox
+                          .shrink(); // ไม่แสดง UI อะไรเลยถ้ายังไม่มีข้อมูล
+                    },
                   ),
                 ],
               ),

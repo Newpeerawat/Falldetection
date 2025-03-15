@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 //import 'dart:convert';
 import 'package:longdo_maps_api3_flutter/longdo_maps_api3_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_application_3/login.dart';
 
 //import 'dart:async';
 
@@ -268,7 +270,7 @@ class _MapsPageState extends State<MapsPage> {
 
       /*map.currentState?.call("Ui.Geolocation.visible",
           args: [true]); //Show Current location symbol*/
-      
+
       //ให้ตอนstartหน้าmapไปอยู่ที่Patient Location
       var location = {
         "lon": double.parse(widget.longitude!),
@@ -279,8 +281,20 @@ class _MapsPageState extends State<MapsPage> {
     }
   }
 
-  /*//Custom Marker
-  ImageProvider markerImage = AssetImage('assets/image/Map_Marker.png');*/
+  //Logout
+  Future<void> _logout() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.remove('hasFetchedLocation');
+    await prefs.remove('latitude');
+    await prefs.remove('longitude');
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const LoginPage(title: "Login"),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -363,6 +377,11 @@ class _MapsPageState extends State<MapsPage> {
                   {'latitude': widget.latitude, 'longitude': widget.longitude});
             },
             child: const Text('Back to Home'),
+          ),
+
+          ElevatedButton(
+            onPressed: (_logout),
+            child: const Text('Logout'),
           ),
         ],
       ),

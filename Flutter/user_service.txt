@@ -6,9 +6,8 @@ class UserService {
   Future<void> saveUser(String username, String password) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? userData = prefs.getString('users');
-    Map<String, String> users = userData != null
-        ? Map<String, String>.from(jsonDecode(userData))
-        : {};
+    Map<String, String> users =
+        userData != null ? Map<String, String>.from(jsonDecode(userData)) : {};
     users[username] = password;
     await prefs.setString('users', jsonEncode(users));
   }
@@ -47,5 +46,18 @@ class UserService {
     if (userData == null) return [];
     Map<String, String> users = Map<String, String>.from(jsonDecode(userData));
     return users.keys.toList();
+  }
+
+  //ดึงทั้งUsernameและPassword
+  Future<List<Map<String, String>>> getAllUserDetails() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? userData = prefs.getString('users');
+    if (userData == null) return [];
+    Map<String, String> users = Map<String, String>.from(jsonDecode(userData));
+
+    // แปลงข้อมูลเป็น List<Map<String, String>> เพื่อรองรับการจัดรูปแบบ
+    return users.entries
+        .map((entry) => {"username": entry.key, "password": entry.value})
+        .toList();
   }
 }

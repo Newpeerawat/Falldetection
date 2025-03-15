@@ -3,8 +3,33 @@ import 'package:flutter_application_3/home.dart';
 import 'package:flutter_application_3/create_account.dart';
 import 'package:flutter_application_3/user_service.dart';
 import 'package:flutter_application_3/account.dart';
+import 'package:flutter_application_3/forgot_password.dart';
+import 'package:flutter_application_3/map.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+
+//มีnotification
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+    FlutterLocalNotificationsPlugin();
+
+Future<void> _showNotification2() async {
+  AndroidNotificationDetails androidNotificationDetails =
+      AndroidNotificationDetails('nextflow_noti_001', 'Urgent Alert',
+          playSound: true,
+          sound: RawResourceAndroidNotificationSound(
+              'notification.mp3'.split('.').first),
+          importance: Importance.max,
+          priority: Priority.high,
+          ticker: 'ticker');
+
+  NotificationDetails platformChannelDetails = NotificationDetails(
+    android: androidNotificationDetails,
+  );
+
+  await flutterLocalNotificationsPlugin.show(0, 'Emergency!',
+      'Open the app to view the location.', platformChannelDetails);
+}
 
 //เมื่อปิดแอพมีการจำค่าuserกับpassword
 class LoginPage extends StatefulWidget {
@@ -27,8 +52,34 @@ class _LoginState extends State<LoginPage> {
   @override
   void initState() {
     super.initState();
+    _checkNavigation();
     _loadRememberedData(); // โหลดข้อมูลที่บันทึกไว้เมื่อเปิดแอพใหม่
   }
+
+  //ฟังก์ชันตรวจสอบ _hasFetchedLocation
+  Future<void> _checkNavigation() async {
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  bool hasFetchedLocation = prefs.getBool('hasFetchedLocation') ?? false;
+
+  if (hasFetchedLocation) {
+    final latitude = prefs.getString('rememberlatitude') ?? '';
+    final longitude = prefs.getString('rememberlongitude') ?? '';
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showNotification2();
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => MapsPage(
+            latitude: latitude,
+            longitude: longitude,
+          ),
+        ),
+      );
+    });
+  }
+}
+
 
   // โหลดข้อมูลจาก SharedPreferences
   Future<void> _loadRememberedData() async {
@@ -67,200 +118,228 @@ class _LoginState extends State<LoginPage> {
         ),
         body: Container(
           padding: EdgeInsets.all(10),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                SizedBox(
-                  height: 10,
-                ),
-                TextFormField(
-                  controller: _userController,
-                  decoration: InputDecoration(labelText: 'Username'),
-                  validator: (input) {
-                    if (input == null || input.isEmpty) {
-                      return 'Please Enter Username';
-                    }
-                    return null;
-                  },
-                ),
-
-                SizedBox(
-                  height: 10,
-                ),
-                TextFormField(
-                  controller: _passwordController,
-                  decoration: InputDecoration(
-                    labelText: 'Password',
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility
-                            : Icons.visibility_off,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _obscurePassword = !_obscurePassword;
-                        });
-                      },
-                    ),
+          child: SingleChildScrollView(
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  SizedBox(
+                    height: 10,
                   ),
-                  obscureText: _obscurePassword, // ควบคุมการแสดง/ซ่อนรหัสผ่าน
-                  validator: (input) {
-                    if (input == null || input.isEmpty) {
-                      return 'Please Enter Password';
-                    }
-                    return null;
-                  },
-                ),
-                //Remember me & Login
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Row(
-                      children: <Widget>[
-                        Checkbox(
-                          value: _rememberMe,
-                          onChanged: (bool? value) {
-                            setState(() {
-                              _rememberMe = value ?? false;
-                            });
-                          },
+                  TextFormField(
+                    controller: _userController,
+                    decoration: InputDecoration(labelText: 'Username'),
+                    validator: (input) {
+                      if (input == null || input.isEmpty) {
+                        return 'Please Enter Username';
+                      }
+                      return null;
+                    },
+                  ),
+            
+                  SizedBox(
+                    height: 10,
+                  ),
+                  TextFormField(
+                    controller: _passwordController,
+                    decoration: InputDecoration(
+                      labelText: 'Password',
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility
+                              : Icons.visibility_off,
                         ),
-                        const Text('Remember Me'),
-                      ],
+                        onPressed: () {
+                          setState(() {
+                            _obscurePassword = !_obscurePassword;
+                          });
+                        },
+                      ),
                     ),
-                    SizedBox(
-                      height: 10,
-                    ),
-                    Row(children: <Widget>[
-                      Expanded(
-                        child: FloatingActionButton(
-                          onPressed: () async {
-                            bool pass = _formKey.currentState!.validate();
-                            if (pass) {
-                              bool isValid = await _userService.validateUser(
-                                _userController.text,
-                                _passwordController.text,
-                              );
-
-                              await _saveRememberedData(
-                                _userController.text,
-                                _passwordController.text,
-                              ); // จำข้อมูลถ้าผู้ใช้เลือก Remember Me
-
-                              if (isValid) {
-                                Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const MyHomePage(
-                                        title: 'Fall Detection'),
-                                  ),
-                                ); //ไปหน้าHomePage
-                                AccountPage(
-                                  user: _userController.text,
-                                ); //ส่งค่าไปหน้าAccountPage
-                              } else {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                      content:
-                                          Text('Invalid username or password')),
+                    obscureText: _obscurePassword, // ควบคุมการแสดง/ซ่อนรหัสผ่าน
+                    validator: (input) {
+                      if (input == null || input.isEmpty) {
+                        return 'Please Enter Password';
+                      }
+                      return null;
+                    },
+                  ),
+                  //Remember me & Login
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Row(
+                        children: <Widget>[
+                          Checkbox(
+                            value: _rememberMe,
+                            onChanged: (bool? value) {
+                              setState(() {
+                                _rememberMe = value ?? false;
+                              });
+                            },
+                          ),
+                          const Text('Remember Me'),
+                        ],
+                      ),
+                      SizedBox(
+                        height: 10,
+                      ),
+                      Row(children: <Widget>[
+                        Expanded(
+                          child: FloatingActionButton(
+                            onPressed: () async {
+                              bool pass = _formKey.currentState!.validate();
+                              if (pass) {
+                                bool isValid = await _userService.validateUser(
+                                  _userController.text,
+                                  _passwordController.text,
                                 );
+            
+                                await _saveRememberedData(
+                                  _userController.text,
+                                  _passwordController.text,
+                                ); // จำข้อมูลถ้าผู้ใช้เลือก Remember Me
+            
+                                if (isValid) {
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => const MyHomePage(),
+                                    ),
+                                  ); //ไปหน้าHomePage
+                                  AccountPage(
+                                    user: _userController.text,
+                                  ); //ส่งค่าไปหน้าAccountPage
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content:
+                                            Text('Invalid username or password')),
+                                  );
+                                }
                               }
-                            }
+                            },
+                            child: const Text('Login'),
+                          ),
+                        ),
+                      ])
+                    ],
+                  ),
+            
+                  SizedBox(
+                    height: 10,
+                  ),
+                  //Clear data
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () {
+                            showDialog(
+                              context: context,
+                              builder: (BuildContext context) {
+                                return AlertDialog(
+                                  title: Text('Are you sure?'),
+                                  content:
+                                      Text('All entered data will be deleted.'),
+                                  actions: <Widget>[
+                                    TextButton(
+                                      onPressed: () async {
+                                        // ล้างข้อมูลในฟอร์ม
+                                        _formKey.currentState!.reset();
+            
+                                        /*// ล้างข้อมูลใน SharedPreferences คือการลบข้อมูลทั้งหมด
+                                        SharedPreferences prefs =
+                                            await SharedPreferences.getInstance();
+                                        await prefs.remove('user');
+                                        await prefs.remove('password');*/
+            
+                                        //SetStateเพื่อให้หน้าจอclearข้อมูลด้วย
+                                        setState(() {
+                                          _userController.clear();
+                                          _passwordController.clear();
+                                        });
+            
+                                        Navigator.of(context)
+                                            .pop(); // ปิดกล่องสนทนา
+                                      },
+                                      child: Text('Clear'),
+                                    ),
+                                    TextButton(
+                                      onPressed: () {
+                                        Navigator.of(context)
+                                            .pop(); // ปิดกล่องสนทนา
+                                      },
+                                      child: Text('Cancel'),
+                                    ),
+                                  ],
+                                );
+                              },
+                            );
                           },
-                          child: const Text('Login'),
+                          child: Text('Clear'),
                         ),
                       ),
-                    ])
-                  ],
-                ),
-
-                SizedBox(
-                  height: 10,
-                ),
-                //Clear data
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder: (BuildContext context) {
-                              return AlertDialog(
-                                title: Text('Are you sure?'),
-                                content:
-                                    Text('All entered data will be deleted.'),
-                                actions: <Widget>[
-                                  TextButton(
-                                    onPressed: () async {
-                                      // ล้างข้อมูลในฟอร์ม
-                                      _formKey.currentState!.reset();
-
-                                      /*// ล้างข้อมูลใน SharedPreferences คือการลบข้อมูลทั้งหมด
-                                      SharedPreferences prefs =
-                                          await SharedPreferences.getInstance();
-                                      await prefs.remove('user');
-                                      await prefs.remove('password');*/
-
-                                      //SetStateเพื่อให้หน้าจอclearข้อมูลด้วย
-                                      setState(() {
-                                        _userController.clear();
-                                        _passwordController.clear();
-                                      });
-
-                                      Navigator.of(context)
-                                          .pop(); // ปิดกล่องสนทนา
-                                    },
-                                    child: Text('Clear'),
-                                  ),
-                                  TextButton(
-                                    onPressed: () {
-                                      Navigator.of(context)
-                                          .pop(); // ปิดกล่องสนทนา
-                                    },
-                                    child: Text('Cancel'),
-                                  ),
-                                ],
-                              );
-                            },
+                    ],
+                  ),
+            
+                  SizedBox(
+                    height: 10,
+                  ),
+                  //Create account
+                  Row(
+                    children: <Widget>[
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => const CreateAccountPage(
+                                    title: 'Create Account')),
                           );
                         },
-                        child: Text('Clear'),
-                      ),
-                    ),
-                  ],
-                ),
-
-                SizedBox(
-                  height: 10,
-                ),
-                //Create account
-                Row(
-                  children: <Widget>[
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const CreateAccountPage(
-                                  title: 'Create Account')),
-                        );
-                      },
-                      child: Text(
-                        'Create an account',
-                        style: TextStyle(
-                          color: Colors.blue, // เพิ่มสีให้ข้อความดูเป็นลิงก์
-                          decoration:
-                              TextDecoration.underline, // เพิ่มขีดเส้นใต้
+                        child: Text(
+                          'Create an account',
+                          style: TextStyle(
+                            color: Colors.blue, // เพิ่มสีให้ข้อความดูเป็นลิงก์
+                            decoration:
+                                TextDecoration.underline, // เพิ่มขีดเส้นใต้
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+            
+                  SizedBox(
+                    height: 10,
+                  ),
+                  //Forgot Password
+                  Row(
+                    children: <Widget>[
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ForgotPasswordPage(
+                                user: _userController.text,
+                              ),
+                            ),
+                          );
+                        },
+                        child: Text(
+                          'Forgot Password??',
+                          style: TextStyle(
+                            color: Colors.red, // เพิ่มสีให้ข้อความดูเป็นลิงก์
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ));
