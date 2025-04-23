@@ -283,6 +283,9 @@ void onStart(ServiceInstance service) async {
 }
 
 class MyHomePage extends StatefulWidget {
+  /*final String user;
+
+  const MyHomePage({super.key, required this.user});*/
   const MyHomePage({super.key});
 
   //final String title;
@@ -294,11 +297,14 @@ class MyHomePage extends StatefulWidget {
 //case 4 ดึงค่าจาก esp32 แล้วแสดงใน map
 class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   bool _isLoading = false;
+  bool _isLogout = false;
   String _latitude = '';
   String _longitude = '';
   int countfall = 0, stop = 0, i = 0;
   String _ESP32 = '';
   final _formKey = GlobalKey<FormState>();
+  String? _name;
+  String? _role;
   String? _username;
   //String? _latitude;
   //String? _longitude;
@@ -502,7 +508,10 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   Future<void> _loadUser() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
-      _username = prefs.getString('savedUser'); // ดึง username ที่เคยบันทึกไว้
+      _name = prefs.getString('savedUser'); // ดึง name ที่เคยบันทึกไว้
+      _username =
+          prefs.getString('rememberUser'); // ดึง username ที่เคยบันทึกไว้
+      _role = prefs.getString('savedrole'); // ดึง role ที่เคยบันทึกไว้
     });
   }
 
@@ -512,10 +521,37 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
       context,
       MaterialPageRoute(
         builder: (context) => AccountPage(
-          user: _username!,
+          user: _name!,
+          role: _role!,
         ),
       ),
     );
+  }
+
+  Future<void> SetLogout(String username) async {
+    setState(() {
+      _isLogout = true; //เริ่มการโหลด
+    });
+
+    final url = Uri.parse(
+      'https://script.google.com/macros/s/AKfycbwqdzf3uekN9H025xXyzCgnwYeMSkKcfulvK2l5C0NirpQVn9G5r30DlP-iKOWkjjyw/exec',
+    );
+
+    await http.post(url, body: {
+      'action': 'Logout',
+      'username': username,
+    });
+
+    setState(() {
+      _isLogout = false; //เสร็จสิ้นการโหลด
+    });
+
+    /*if (response.statusCode == 200) {
+      final result = jsonDecode(response.body);
+      print("✅ ${result['message']}");
+    } else {
+      print("❌ Failed to delete user");
+    }*/
   }
 
   //Logout
@@ -524,6 +560,8 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
     await prefs.remove('hasFetchedLocation');
     await prefs.remove('latitude');
     await prefs.remove('longitude');
+
+    await SetLogout(_username!);
 
     Navigator.pushReplacement(
       context,
@@ -537,124 +575,138 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     return WillPopScope(
         child: Scaffold(
-          appBar: AppBar(
-            backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-            title: const Text('Fall Detection'),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.refresh),
-                onPressed: fetchData,
-              ),
-            ],
-          ),
-          body: Container(
-            padding: const EdgeInsets.all(16.0),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Center(
-                    child: Align(
-                      alignment: Alignment.topRight,
-                      child: IconButton(
-                        icon: const Icon(Icons.account_circle),
-                        iconSize: 30,
-                        onPressed: _Account,
+            appBar: AppBar(
+              backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+              title: const Text('Fall Detection'),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  onPressed: fetchData,
+                ),
+              ],
+            ),
+            body: SafeArea(
+              child: _isLogout
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(height: 12),
+                          Text("Logout....."),
+                        ],
                       ),
-                    ),
-                  ),
-                  if (_isLoading)
-                    const CircularProgressIndicator()
-                  else
-                    Column(
-                      children: [
-                        Text(
-                          'Latitude: $_latitude',
-                          style: const TextStyle(fontSize: 20),
-                        ),
-                        const SizedBox(height: 20),
-                        Text(
-                          'Longitude: $_longitude',
-                          style: const TextStyle(fontSize: 20),
-                        ),
-                        const SizedBox(height: 60),
-                        Center(
-                          child: Text(
-                            'ESP32: $_ESP32',
-                            style: const TextStyle(fontSize: 20),
-                          ),
-                        ),
-                      ],
-                    ),
-
-                  // ใช้ Center widget เพื่อจัดให้รูปภาพอยู่ตรงกลาง
-                  Center(
-                    child: Column(
-                      children: [
-                        Image.network(
-                          "https://files.seeedstudio.com/wiki/Wio_RP2040_mini_Dev_Board-Onboard_Wifi/Wireless-Fall-Detection-Device/fall.jpg",
-                          width: 200,
-                          height: 200,
-                        ),
-                        const Text(
-                          'Welcome to Fall Detection:',
-                        ),
-                        //เพิ่มเงื่อนไขshowปุ่ม share location เมื่อจับตำแหน่งการล้มได้
-                        if (_latitude != 'Failed to fetch data' &&
-                            _longitude != 'Failed to fetch data' &&
-                            countfall != 0)
-                          ElevatedButton(
-                            onPressed: _copyToClipboard,
-                            child: Text('Share Location'),
-                          ),
-                        //ปุ่ม logout
-                        SizedBox(
-                          height: 15,
-                        ),
-                        Row(
+                    )
+                  : Container(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: <Widget>[
-                            Expanded(
-                                child: FloatingActionButton(
-                              onPressed: (_logout),
-                              child: const Text('Logout'),
-                            ))
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  //For Foreground&Background to Mapspage
-                  StreamBuilder<Map<String, dynamic>?>(
-                    stream: FlutterBackgroundService().on('open_maps'),
-                    builder: (context, snapshot) {
-                      if (snapshot.hasData) {
-                        final data = snapshot.data!;
-                        String latitude = data["latitude"] ?? "0";
-                        String longitude = data["longitude"] ?? "0";
-
-                        // ✅ นำทางไปหน้า MapsPage อัตโนมัติเมื่อได้รับค่าพิกัด
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => MapsPage(
-                                latitude: latitude,
-                                longitude: longitude,
+                            Center(
+                              child: Align(
+                                alignment: Alignment.topRight,
+                                child: IconButton(
+                                  icon: const Icon(Icons.account_circle),
+                                  iconSize: 30,
+                                  onPressed: _Account,
+                                ),
                               ),
                             ),
-                          );
-                        });
-                      }
-                      return SizedBox
-                          .shrink(); // ไม่แสดง UI อะไรเลยถ้ายังไม่มีข้อมูล
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
+                            if (_isLoading)
+                              const CircularProgressIndicator()
+                            else
+                              Column(
+                                children: [
+                                  Text(
+                                    'Latitude: $_latitude',
+                                    style: const TextStyle(fontSize: 20),
+                                  ),
+                                  const SizedBox(height: 20),
+                                  Text(
+                                    'Longitude: $_longitude',
+                                    style: const TextStyle(fontSize: 20),
+                                  ),
+                                  const SizedBox(height: 60),
+                                  Center(
+                                    child: Text(
+                                      'ESP32: $_ESP32',
+                                      style: const TextStyle(fontSize: 20),
+                                    ),
+                                  ),
+                                ],
+                              ),
+
+                            // ใช้ Center widget เพื่อจัดให้รูปภาพอยู่ตรงกลาง
+                            Center(
+                              child: Column(
+                                children: [
+                                  Image.network(
+                                    "https://files.seeedstudio.com/wiki/Wio_RP2040_mini_Dev_Board-Onboard_Wifi/Wireless-Fall-Detection-Device/fall.jpg",
+                                    width: 200,
+                                    height: 200,
+                                  ),
+                                  const Text(
+                                    'Welcome to Fall Detection:',
+                                  ),
+                                  //เพิ่มเงื่อนไขshowปุ่ม share location เมื่อจับตำแหน่งการล้มได้
+                                  if (_latitude != 'Failed to fetch data' &&
+                                      _longitude != 'Failed to fetch data' &&
+                                      countfall != 0)
+                                    ElevatedButton(
+                                      onPressed: _copyToClipboard,
+                                      child: const Text('Share Location'),
+                                    ),
+                                  //ปุ่ม logout
+                                  SizedBox(
+                                    height: 15,
+                                  ),
+                                  Row(
+                                    children: <Widget>[
+                                      Expanded(
+                                          child: FloatingActionButton(
+                                        onPressed: (_logout),
+                                        child: const Text('Logout'),
+                                      ))
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            //For Foreground&Background to Mapspage
+                            StreamBuilder<Map<String, dynamic>?>(
+                              stream:
+                                  FlutterBackgroundService().on('open_maps'),
+                              builder: (context, snapshot) {
+                                if (snapshot.hasData) {
+                                  final data = snapshot.data!;
+                                  String latitude = data["latitude"] ?? "0";
+                                  String longitude = data["longitude"] ?? "0";
+
+                                  // ✅ นำทางไปหน้า MapsPage อัตโนมัติเมื่อได้รับค่าพิกัด
+                                  WidgetsBinding.instance
+                                      .addPostFrameCallback((_) {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => MapsPage(
+                                          latitude: latitude,
+                                          longitude: longitude,
+                                        ),
+                                      ),
+                                    );
+                                  });
+                                }
+                                return SizedBox
+                                    .shrink(); // ไม่แสดง UI อะไรเลยถ้ายังไม่มีข้อมูล
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+            )),
         onWillPop: () async {
           return false;
         });

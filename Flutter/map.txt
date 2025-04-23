@@ -4,6 +4,10 @@ import 'package:longdo_maps_api3_flutter/longdo_maps_api3_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_application_3/login.dart';
+import 'package:flutter_application_3/home.dart';
+import 'package:http/http.dart' as http;
+//import 'package:flutter_application_3/home.dart';
+import 'package:flutter/services.dart';
 
 //import 'dart:async';
 
@@ -121,6 +125,8 @@ class _MapsPageState extends State<MapsPage> {
   final map = GlobalKey<LongdoMapState>();
   final GlobalKey<ScaffoldMessengerState> messenger =
       GlobalKey<ScaffoldMessengerState>();
+  bool _isLoading = false;
+  String? _username;
 
   String? latitude;
   String? longitude;
@@ -281,9 +287,42 @@ class _MapsPageState extends State<MapsPage> {
     }
   }
 
+  Future<void> SetLogout(String username) async {
+    setState(() {
+      _isLoading = true; //เริ่มการโหลด
+    });
+
+    final url = Uri.parse(
+      'https://script.google.com/macros/s/AKfycbwqdzf3uekN9H025xXyzCgnwYeMSkKcfulvK2l5C0NirpQVn9G5r30DlP-iKOWkjjyw/exec',
+    );
+
+    await http.post(url, body: {
+      'action': 'Logout',
+      'username': username,
+    });
+
+    setState(() {
+      _isLoading = false; //เสร็จสิ้นการโหลด
+    });
+
+    /*if (response.statusCode == 200) {
+      final result = jsonDecode(response.body);
+      print("✅ ${result['message']}");
+    } else {
+      print("❌ Failed to delete user");
+    }*/
+  }
+
   //Logout
   Future<void> _logout() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _username =
+          prefs.getString('rememberUser'); // ดึง username ที่เคยบันทึกไว้
+    });
+
+    await SetLogout(_username!);
+
     await prefs.remove('hasFetchedLocation');
     await prefs.remove('latitude');
     await prefs.remove('longitude');
@@ -296,95 +335,145 @@ class _MapsPageState extends State<MapsPage> {
     );
   }
 
+  //Copy URL function
+  Future<void> _copyToClipboard() async {
+    // สร้าง URL โดยแทรกค่า latitude และ longitude
+    final String url =
+        'https://www.google.com/maps/search/?api=1&query=${widget.latitude},${widget.longitude}';
+
+    // คัดลอก URL ไปยังคลิปบอร์ด
+    await Clipboard.setData(ClipboardData(text: url));
+
+    // แสดงข้อความยืนยันการคัดลอก
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Copied to clipboard!')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Map'),
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            flex: 2,
-            child: LongdoMapWidget(
-              apiKey: "330c3103963b7f4bd6aea126b985c041",
-              key: map,
-              eventName: [
-                JavascriptChannel(
-                  name: "ready",
-                  onMessageReceived: (message) {
-                    /*// Check if latitude and longitude are available, then add marker for destination
+        appBar: AppBar(
+          title: const Text('Map'),
+        ),
+        body: SafeArea(
+          child: _isLoading
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(height: 12),
+                      Text("Logout....."),
+                    ],
+                  ),
+                )
+              : Column(
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: LongdoMapWidget(
+                        apiKey: "330c3103963b7f4bd6aea126b985c041",
+                        key: map,
+                        eventName: [
+                          JavascriptChannel(
+                            name: "ready",
+                            onMessageReceived: (message) {
+                              /*// Check if latitude and longitude are available, then add marker for destination
                     if (widget.latitude != null && widget.longitude != null) {
                       addMarker(double.parse(widget.latitude!),
                           double.parse(widget.longitude!));
                     }*/
 
-                    //get location
-                    getLocation();
-                  },
-                ),
-              ],
-            ),
-          ),
+                              //get location
+                              getLocation();
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
 
-          // Show latitude and longitude on app
-          if (widget.latitude != null && widget.longitude != null)
-            Text(
-                'Latitude: ${widget.latitude}, Longitude: ${widget.longitude}'),
-          // Button to get current location
-          /*ElevatedButton(
+                    // Show latitude and longitude on app
+                    if (widget.latitude != null && widget.longitude != null)
+                      Text(
+                          'Latitude: ${widget.latitude}, Longitude: ${widget.longitude}'),
+                    // Button to get current location
+                    /*ElevatedButton(
             //onPressed: getCurrentLocation,
             onPressed: test,
             child: const Text('Get Current Location'),
           ),*/
 
-          //ให้อยู่บรรทัดเดียวกันในแนวนอน
-          Row(
-            mainAxisAlignment:
-                MainAxisAlignment.spaceEvenly, // จัดวางปุ่มให้มีระยะห่างเท่ากัน
-            children: [
-              //ปุ่ม My Location
-              ElevatedButton(
-                onPressed: () async {
-                  Position currentposition =
-                      await Geolocator.getCurrentPosition(
-                          desiredAccuracy: LocationAccuracy.best);
-                  var location = {
-                    "lon": double.parse(currentposition.longitude.toString()),
-                    "lat": double.parse(currentposition.latitude.toString()),
-                  };
-                  map.currentState?.call("location", args: [location]);
-                },
-                child: const Text('My Location'),
-              ),
-              //ปุ่ม Patient Location
-              ElevatedButton(
-                onPressed: () {
-                  var location = {
-                    "lon": double.parse(widget.longitude!),
-                    "lat": double.parse(widget.latitude!),
-                  };
-                  map.currentState?.call("location", args: [location]);
-                },
-                child: const Text('Patient Location'),
-              ),
-            ],
-          ),
+                    //ให้อยู่บรรทัดเดียวกันในแนวนอน
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment
+                          .spaceEvenly, // จัดวางปุ่มให้มีระยะห่างเท่ากัน
+                      children: [
+                        //ปุ่ม My Location
+                        ElevatedButton(
+                          onPressed: () async {
+                            Position currentposition =
+                                await Geolocator.getCurrentPosition(
+                                    desiredAccuracy: LocationAccuracy.best);
+                            var location = {
+                              "lon": double.parse(
+                                  currentposition.longitude.toString()),
+                              "lat": double.parse(
+                                  currentposition.latitude.toString()),
+                            };
+                            map.currentState
+                                ?.call("location", args: [location]);
+                          },
+                          child: const Text('My Location'),
+                        ),
+                        //ปุ่ม Patient Location
+                        ElevatedButton(
+                          onPressed: () {
+                            var location = {
+                              "lon": double.parse(widget.longitude!),
+                              "lat": double.parse(widget.latitude!),
+                            };
+                            map.currentState
+                                ?.call("location", args: [location]);
+                          },
+                          child: const Text('Patient Location'),
+                        ),
+                      ],
+                    ),
 
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context,
-                  {'latitude': widget.latitude, 'longitude': widget.longitude});
-            },
-            child: const Text('Back to Home'),
-          ),
+                    //ให้อยู่บรรทัดเดียวกันในแนวนอน
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment
+                          .spaceEvenly, // จัดวางปุ่มให้มีระยะห่างเท่ากัน
+                      children: [
+                        ElevatedButton(
+                          onPressed: (_copyToClipboard),
+                          child: const Text('Share Location'),
+                        ),
+                        ElevatedButton(
+                          onPressed: () {
+                            Navigator.pop(context, {
+                              'latitude': widget.latitude,
+                              'longitude': widget.longitude
+                            });
+                            /*Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const MyHomePage(),
+                              ),
+                            ); //ไปหน้าHomePage*/
+                          },
+                          child: const Text('Back to Home'),
+                        ),
+                      ],
+                    ),
 
-          ElevatedButton(
-            onPressed: (_logout),
-            child: const Text('Logout'),
-          ),
-        ],
-      ),
-    );
+                    ElevatedButton(
+                      onPressed: (_logout),
+                      child: const Text('Logout'),
+                    ),
+                  ],
+                ),
+        ));
   }
 }
