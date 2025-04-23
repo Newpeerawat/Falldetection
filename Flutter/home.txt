@@ -561,6 +561,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
     await prefs.remove('latitude');
     await prefs.remove('longitude');
 
+    await prefs.remove('rememberstatus');
     await SetLogout(_username!);
 
     Navigator.pushReplacement(

@@ -52,6 +52,7 @@ class _LoginState extends State<LoginPage> {
   bool _isLoading = false; // ✅ ตัวแปรโหลด
   List<Map<String, String>> userList = [];
   bool _rememberMe = false; // ตัวแปรควบคุมสถานะ "Remember Me"
+  String status = ''; // ตัวแปรเช็ค Login
 
   @override
   void initState() {
@@ -89,9 +90,18 @@ class _LoginState extends State<LoginPage> {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
       _rememberMe = prefs.getBool('rememberMe') ?? false;
+      status = prefs.getString('rememberstatus') ?? '';
       if (_rememberMe) {
         _userController.text = prefs.getString('rememberUser') ?? '';
         _passwordController.text = prefs.getString('rememberPassword') ?? '';
+        if (status == 'Login')
+          //ไปยังหน้า MyHomePage
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const MyHomePage(),
+            ),
+          );
       }
     });
   }
@@ -174,6 +184,8 @@ class _LoginState extends State<LoginPage> {
 
   //Check Login to Homepage
   Future<void> checkLogin() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+
     if (!_formKey.currentState!.validate()) return;
 
     await fetchUsers();
@@ -201,6 +213,7 @@ class _LoginState extends State<LoginPage> {
       );
 
       //Set Login Status
+      await prefs.setString('rememberstatus', 'Login');
       await SetLogin(inputUsername);
 
       /*

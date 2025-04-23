@@ -321,6 +321,7 @@ class _MapsPageState extends State<MapsPage> {
           prefs.getString('rememberUser'); // ดึง username ที่เคยบันทึกไว้
     });
 
+    await prefs.remove('rememberstatus');
     await SetLogout(_username!);
 
     await prefs.remove('hasFetchedLocation');
