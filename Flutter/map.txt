@@ -452,16 +452,16 @@ class _MapsPageState extends State<MapsPage> {
                         ),
                         ElevatedButton(
                           onPressed: () {
-                            Navigator.pop(context, {
+                            /*Navigator.pop(context, {
                               'latitude': widget.latitude,
                               'longitude': widget.longitude
-                            });
-                            /*Navigator.pushReplacement(
+                            });*/
+                            Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(
                                 builder: (context) => const MyHomePage(),
                               ),
-                            ); //ไปหน้าHomePage*/
+                            ); //ไปหน้าHomePage
                           },
                           child: const Text('Back to Home'),
                         ),

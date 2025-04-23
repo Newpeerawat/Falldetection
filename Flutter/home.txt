@@ -321,7 +321,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   void initState() {
     //await initializeService(); //On Background service
     super.initState();
-    fetchData(); //เริ่มการfetch data แบบ auto
+    //fetchData(); //เริ่มการfetch data แบบ auto
     _loadUser(); //โหลดข้อมูลAccount
 
     WidgetsBinding.instance.addObserver(this); //สำหรับ app cycle
