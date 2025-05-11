@@ -1,0 +1,264 @@
+/*function doPost(e) {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+
+    const name = e.parameter.name;
+    const username = e.parameter.username;
+    const password = e.parameter.password;
+
+    const lastRow = sheet.getLastRow();
+    const newId = lastRow;
+
+    let role = (newId === 1) ? 'admin' : 'user';
+
+    sheet.appendRow([newId, name, username, password, role]);
+
+    return ContentService.createTextOutput(
+      JSON.stringify({
+        status: "success",
+        message: "Data saved",
+        id: newId,
+        role: role,
+      })
+    ).setMimeType(ContentService.MimeType.JSON);
+}*/
+
+
+function doPost(e) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const action = e.parameter.action;
+
+  if (action === "register") {
+    const name = e.parameter.name;
+    const username = e.parameter.username;
+    const password = e.parameter.password;
+
+    const lastRow = sheet.getLastRow();
+    const newId = lastRow;
+
+    let role = (newId === 1) ? 'admin' : 'user';
+    let status = 'Logout'
+
+    sheet.appendRow([newId, name, username, password, role, status]);
+
+    return ContentService.createTextOutput(
+      JSON.stringify({
+        status: "success",
+        message: "Data saved",
+        id: newId,
+        role: role,
+      })
+    ).setMimeType(ContentService.MimeType.JSON);
+  }
+
+  if (action === "delete") {
+    const nameToDelete = e.parameter.name;
+    const data = sheet.getDataRange().getValues();
+
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][1] === nameToDelete) { // column B คือ name
+        sheet.deleteRow(i + 1); // i+1 เพราะ index เริ่มที่ 0 และแถวแรกเป็น header
+        return ContentService.createTextOutput(
+          JSON.stringify({
+            status: "success",
+            message: `User '${nameToDelete}' deleted`,
+          })
+        ).setMimeType(ContentService.MimeType.JSON);
+      }
+    }
+
+    return ContentService.createTextOutput(
+      JSON.stringify({
+        status: "fail",
+        message: `Username '${usernameToDelete}' not found`,
+      })
+    ).setMimeType(ContentService.MimeType.JSON);
+  }
+
+  if (action === "Login") {
+  const usernameToLogin = e.parameter.username;
+  const data = sheet.getDataRange().getValues();
+
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][2] === usernameToLogin) { // column C คือ Username
+      sheet.getRange(i + 1, 6).setValue('Login'); //เขียนกลับลง Sheet
+
+      return ContentService.createTextOutput(
+        JSON.stringify({
+          status: "success",
+          message: `Username '${usernameToLogin}' logged in.`,
+        })
+      ).setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+
+  return ContentService.createTextOutput(
+    JSON.stringify({
+      status: "fail",
+      message: `Username '${usernameToLogin}' not found.`,
+    })
+  ).setMimeType(ContentService.MimeType.JSON);
+}
+
+ if (action === "Logout") {
+  const usernameToLogout = e.parameter.username;
+  const data = sheet.getDataRange().getValues();
+
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][2] === usernameToLogout) { // column C คือ Username
+      sheet.getRange(i + 1, 6).setValue('Logout'); //เขียนกลับลง Sheet
+
+      return ContentService.createTextOutput(
+        JSON.stringify({
+          status: "success",
+          message: `Username '${usernameToLogout}' logged out.`,
+        })
+      ).setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+
+  return ContentService.createTextOutput(
+    JSON.stringify({
+      status: "fail",
+      message: `Username '${usernameToLogout}' not found.`,
+    })
+  ).setMimeType(ContentService.MimeType.JSON);
+}
+
+
+  return ContentService.createTextOutput(
+    JSON.stringify({
+      status: "error",
+      message: "Invalid action",
+    })
+  ).setMimeType(ContentService.MimeType.JSON);
+}
+
+
+function doGet(e) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const data = sheet.getDataRange().getValues(); // ดึงข้อมูลทั้งหมด
+  const result = [];
+
+  for (let i = 1; i < data.length; i++) {
+    result.push({
+      name:     data[i][1], // Column B (index 1)
+      username: data[i][2], // Column C (index 2)
+      password: data[i][3], // Column D (index 3)
+      role:     data[i][4], // Column E (index 4)
+      status:   data[i][5], // Column F (index 5)
+    });
+  }
+
+  return ContentService.createTextOutput(JSON.stringify(result))
+                       .setMimeType(ContentService.MimeType.JSON);
+}
+
+
+/*
+//รวม register กับ login
+function doPost(e) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const action = e.parameter.action;
+
+  if (action === "register") {
+    const name = e.parameter.name;
+    const username = e.parameter.username;
+    const password = e.parameter.password;
+
+    const lastRow = sheet.getLastRow();
+    const newId = lastRow; // ID นับจากแถวก่อนหน้า (แถวแรกคือ header)
+
+    let role = (newId === 1) ? 'admin' : 'user';
+
+    sheet.appendRow([newId, name, username, password, role]);
+
+    return ContentService.createTextOutput(
+      JSON.stringify({
+        status: "success",
+        message: "Data saved",
+        id: newId,
+        role: role,
+      })
+    ).setMimeType(ContentService.MimeType.JSON);
+  }
+
+  if (action === "login") {
+    const username = e.parameter.username;
+    const password = e.parameter.password;
+
+    const data = sheet.getDataRange().getValues();
+
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][2] === username && data[i][3] === password) {
+        return ContentService.createTextOutput(
+          JSON.stringify({
+            status: "success",
+            message: "Login successful",
+            name: data[i][1],
+            role: data[i][4],
+          })
+        ).setMimeType(ContentService.MimeType.JSON);
+      }
+    }
+
+    return ContentService.createTextOutput(
+      JSON.stringify({ status: "fail", message: "Invalid credentials" })
+    ).setMimeType(ContentService.MimeType.JSON);
+  }
+
+  return ContentService.createTextOutput(
+    JSON.stringify({ status: "error", message: "Invalid action" })
+  ).setMimeType(ContentService.MimeType.JSON);
+}
+*/
+
+
+/*//ไม่รับ role
+function doPost(e) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+
+  // รับค่าจาก Flutter
+  const name = e.parameter.name;
+  const username = e.parameter.username;
+  const password = e.parameter.password;
+
+  // นับจำนวนแถว (แถวที่ 1 คือ header)
+  const lastRow = sheet.getLastRow();
+  const newId = lastRow; // ID = จำนวนแถวก่อนหน้า
+
+  // กำหนด role ตาม ID
+  let role = (newId === 1) ? 'admin' : 'user';
+
+  // เพิ่มข้อมูลใหม่
+  sheet.appendRow([newId, name, username, password, role]);
+
+  return ContentService
+         .createTextOutput("Data saved with ID: " + newId + ", Role: " + role)
+         .setMimeType(ContentService.MimeType.TEXT);
+}*/
+
+/*
+//รับ role ด้วย
+function doPost(e) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+
+  // รับค่าที่เหลือจาก Flutter
+  const name = e.parameter.name;
+  const username = e.parameter.username;
+  const password = e.parameter.password;
+  const role = e.parameter.role;
+
+  // คำนวณ ID โดยใช้จำนวนแถวที่มีอยู่แล้ว
+  const lastRow = sheet.getLastRow(); // นับรวม header ด้วย
+  const newId = lastRow; // สมมติว่าแถวแรกคือ header
+
+  // เพิ่มข้อมูลลงแถวใหม่ (ID auto-generate)
+  sheet.appendRow([newId, name, username, password, role]);
+
+  return ContentService
+         .createTextOutput("Data saved with ID: " + newId)
+         .setMimeType(ContentService.MimeType.TEXT);
+}
+*/
+
+//https://script.google.com/macros/s/AKfycbzjvaqLsOJ6bYnMM4rHXRYgNb1iXkjr7ApNrhx8Jw1fsC7kTsFl8xuPpFSeHgo1NXL-/exec
