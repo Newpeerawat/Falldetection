@@ -12,6 +12,7 @@
         "GyrY",
         "GyrZ"
     ],
+    "label_column": "Label",
     "test_size": 0.2,
     "train_subjects": [
         "S31",

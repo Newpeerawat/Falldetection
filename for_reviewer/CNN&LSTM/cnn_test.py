@@ -22,7 +22,7 @@ LABEL_COL = "Label"
 
 WINDOW_SIZE = 50
 STEP_SIZE = 25
-THRESHOLD = 0.7
+THRESHOLD = 0.2
 
 MODEL_PATH = "CNN_fall_detection_model_subjectwise.keras"
 IMPUTER_PATH = "CNN_imputer_subjectwise.pkl"
